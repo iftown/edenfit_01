@@ -2,7 +2,7 @@
 
 import pandas as pd
 
-l = ['fdsfd',12,34,56]
+l = []
 aa =  pd.DataFrame(l)
 print(aa.T)
 
