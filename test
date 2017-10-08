@@ -1,0 +1,164 @@
+# -*- coding: utf-8 -*-
+"""
+Created on Fri Oct  6 18:49:28 2017
+
+@author: Administrator
+"""
+
+from queue import Queue
+import sys, os
+import datetime
+import pandas as pd
+import pymysql
+from sqlalchemy import create_engine
+import json
+import threading
+import tushare
+import random
+import time
+
+da_a = pd.DataFrame()
+da_b = pd.DataFrame()
+da_all = pd.DataFrame()
+result = pd.DataFrame()
+
+conn = create_engine('mysql+pymysql://aliyun_stock:mMWcC4ZCJ3@localhost:3306/aliyun_stock?charset=utf8')
+
+
+class DataFactory(threading.Thread):
+    def __init__(self, t_name, queue):
+        threading.Thread.__init__(self, name=t_name)
+        self.data = queue
+
+    def run(self):
+        while True:
+            va = random.randint(10, 20)
+            self.data.put(va)
+            # time.sleep(1)
+
+
+class Customer_a(threading.Thread):
+    def __init__(self, t_name, queue):
+        threading.Thread.__init__(self, name=t_name)
+        self.data = queue
+
+    def run(self):
+
+        global da_all
+        global da_a
+        while True:
+            re_json = self.data.get(1, 5)
+            ca = re_json
+            if ca >= 16:
+                # da_a = pd.DataFrame()
+                for i in range(100):
+                    time_now = int(time.time())
+                    # 转换成localtime
+                    time_local = time.localtime(time_now)
+                    # 转换成新的时间格式(2016-05-09 18:59:20)
+                    dt = time.strftime("%Y-%m-%d %H:%M:%S", time_local)
+                    j = random.randint(60, 100)
+                    la = [dt, j, j + 1, j + 2, j + 3]
+                    data = pd.DataFrame(la)
+                    # print(data)
+                    data_t = data.T
+                    data_t.columns = ['Time', 'la_1', 'la_2', 'la_3', 'la_4']
+                da_a = data_t
+                # print(da_a)
+            '''
+            da_all = da_all.append(da_a)
+            #print(len(da_all))
+            #print(datetime.datetime.now())
+            if len(da_all)>= 1000:
+                pd.io.sql.to_sql(da_all,'datest', conn, schema='aliyun_stock', if_exists='append')
+                print(len(da_all))
+                print(datetime.datetime.now())
+                da_all = pd.DataFrame()
+                print('-----------------------------------')
+            '''
+            # time.sleep(1)
+
+
+class Customer_b(threading.Thread):
+    def __init__(self, t_name, queue):
+        threading.Thread.__init__(self, name=t_name)
+        self.data = queue
+
+    def run(self):
+
+        global da_all
+        global da_b
+        global result
+        while True:
+            re_json = self.data.get(1, 5)
+            ca = re_json
+            if ca <= 15:
+                # da_b = pd.DataFrame()
+                for i in range(100):
+                    time_now = int(time.time())
+                    # 转换成localtime
+                    time_local = time.localtime(time_now)
+                    # 转换成新的时间格式(2016-05-09 18:59:20)
+                    dt = time.strftime("%Y-%m-%d %H:%M:%S", time_local)
+                    j = random.randint(1, 9)
+                    lb = [dt, j, j + 3, j + 4]
+                    data = pd.DataFrame(lb)
+                    data_t = data.T
+                    data_t.columns = ['Time', 'lb_1', 'lb_2', 'lb_3']
+                da_b = data_t
+                # print(da_a)
+                # print(da_b)
+                result = pd.merge(da_a, da_b, how='outer', left_index=False, right_index=False, sort=True, copy=True,
+                                  indicator=True)
+                # print(result)
+
+            da_all = da_all.append(result)
+            result = pd.DataFrame()
+            # print(da_all)
+            # print(len(da_all))
+            # print(datetime.datetime.now())
+            if len(da_all) >= 100000:
+                pd.io.sql.to_sql(da_all, 'datest', conn, schema='aliyun_stock', if_exists='append')
+                # print(da_all)
+                # print(datetime.datetime.now())
+                da_all = pd.DataFrame()
+                # print('-----------------------------------')
+                # time.sleep(1)
+
+
+# 主线程
+def main():
+    # exit_flag = threading.Event()
+    # exit_flag.clear()
+
+    queue = Queue()
+    producer = DataFactory('Pro.', queue)
+
+    consumer_a = Customer_a('a.', queue)
+    consumer_b = Customer_b('b.', queue)
+    # consumer_zbcj = Consumer_zbcj('Con_zbcj.', queue)
+
+    producer.start()
+    # http_get.start()
+    consumer_a.start()
+    consumer_b.start()
+    # consumer_zbcj.start()
+
+    producer.join()
+    # http_get.join()
+    consumer_a.join()
+    consumer_b.join()
+    # consumer_zbcj.join()
+
+    '''
+    #数据处理完毕，关闭数据库-------------------
+    cur.close()  
+    conn.close()
+    '''
+
+    print('全部线程终止')
+
+
+# 执行程序
+if __name__ == '__main__':
+    main()
